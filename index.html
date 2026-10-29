@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elektro-Formelsammlung</title>
+<style>
+:root{--bg:#f5f5f2;--fg:#1a1a1a;--mu:#6b6b66;--ac:#1f6feb;--sf:#fff;--bd:#dcdcd6;--ok:#0a7a3d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16171a;--fg:#f0f0ee;--mu:#9a9a95;--ac:#5b9bff;--sf:#222327;--bd:#35363b;--ok:#4ade80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16171a;--fg:#f0f0ee;--mu:#9a9a95;--ac:#5b9bff;--sf:#222327;--bd:#35363b;--ok:#4ade80;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:14px;max-width:760px;margin-inline:auto}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:var(--mu);font-size:13px;margin:0 0 12px}
+#q{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--bd);background:var(--sf);color:var(--fg);font-size:16px;margin-bottom:10px}
+#tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px}
+#tabs button{flex:none;border:1px solid var(--bd);background:var(--sf);color:var(--fg);border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer}
+#tabs button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.card[hidden]{display:none}
+h2{font-size:16px;margin:0 0 4px}
+.f{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--mu);margin:0 0 10px;overflow-x:auto;white-space:nowrap}
+.note{font-size:14px;line-height:1.5;margin:0}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+label{font-size:12px;color:var(--mu);display:flex;flex-direction:column;gap:3px}
+label i{font-style:normal;opacity:.8}
+input,select{width:100%;padding:9px 10px;border-radius:9px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);font-size:16px}
+.out{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.out div{background:var(--bg);border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;min-width:110px}
+.out span{font-size:12px;color:var(--mu)}
+.out b{color:var(--ok);font-size:17px}
+.out em{color:var(--mu);font-size:13px}
+</style>
+</head>
+<body>
+<h1>Elektro-Formelsammlung</h1>
+<p class="sub">Werte eintragen, Ergebnis erscheint sofort. Komma oder Punkt möglich.</p>
+<input id="q" type="search" placeholder="Suchen, z. B. Spannungsfall, cos φ, Motor …">
+<div id="tabs"></div>
+<div id="list"></div>
+<p class="sub">Richtwerte und Rechenhilfe – ersetzt keine Normprüfung (VDE 0100) und keine Messung vor Ort.</p>
+<script>
+const r3=Math.sqrt(3),PI2=2*Math.PI,n=(v,s)=>s.split(" ").some(x=>isNaN(v[x])),z=x=>isNaN(x)?0:x;
+const fmt=x=>isFinite(x)?(+x.toPrecision(5)).toLocaleString("de-DE",{maximumFractionDigits:6}):"–";
+const PH=[["1-phasig",1],["3-phasig",3]];
+const TF={10:1.22,15:1.17,20:1.12,25:1.06,30:1,35:.94,40:.87,45:.79,50:.71,55:.61,60:.5,65:.35},HN=[1,2,3,4,5,6,8,10,12,14],HF=[[1,.8,.7,.65,.6,.57,.52,.48,.45,.43],[1,.85,.79,.75,.73,.72,.71,.7,.7,.7],[1,.94,.9,.9,.9,.9,.9,.9,.9,.9],[.95,.81,.72,.68,.66,.64,.62,.61,.61,.61],[.95,.85,.85,.85,.85,.85,.85,.85,.85,.85]],IN=[6,10,13,16,20,25,32,40,50,63,80,100,125,160,200,250],S2l=[1.5,2.5,4,6,10,16,25,35,50,70,95,120];
+const T2={1.5:[15.5,13.5,15.5,13,17.5,15.5,16.5,15,19.5,17.5,22,18.5],2.5:[19.5,18,18.5,17.5,24,21,23,20,27,24,30,25],4:[26,24,25,23,32,28,30,27,36,32,40,34],6:[34,31,32,29,41,36,38,34,46,41,51,43],10:[46,42,43,39,57,50,52,46,63,57,70,60],16:[61,56,57,52,76,68,69,62,85,76,94,80],25:[80,73,75,68,101,89,90,80,112,96,119,101],35:[99,89,92,83,125,110,111,99,138,119,148,126],50:[119,108,110,99,151,134,133,118,168,144,180,153],70:[151,136,139,125,192,171,168,149,213,184,232,196],95:[182,164,167,150,232,207,201,179,258,223,282,238],120:[210,188,192,172,269,239,232,206,299,259,328,276]};
+const T3={1.5:[[16.5,14.5,16.5,14,18.5,16.5,17.5,16,21,18.5,23,19.5],[16,13,16,13,16,16,16,16,20,16,20,16]],2.5:[[21,19,19.5,18.5,25,22,24,21,29,25,32,27],[20,16,16,16,25,20,20,20,25,25,32,25]],4:[[28,25,27,24,34,30,32,29,38,35,42,36],[25,25,25,20,32,25,32,25,35,35,40,35]],6:[[36,33,34,31,43,38,40,36,49,43,54,46],[35,32,32,25,40,35,40,35,40,40,50,40]],10:[[49,45,46,41,60,53,55,50,67,63,74,64],[40,40,40,40,50,50,50,50,63,63,63,63]],16:[[65,59,60,55,81,72,73,66,90,81,100,85],[63,50,50,50,80,63,63,63,80,80,100,80]],25:[[85,77,80,72,107,94,95,85,119,102,126,107],[80,63,80,63,100,80,80,80,100,100,125,100]],35:[[105,94,98,88,133,117,118,105,146,126,157,134],[100,80,80,80,125,100,100,100,125,125,125,125]],50:[[126,114,117,105,160,142,141,125,178,153,191,162],[125,100,100,100,160,125,125,125,160,125,160,160]]};
+const VA=[['A1 · Aderltg. im Rohr, gedämmte Wand',0],['A2 · Mantelltg. in gedämmter Wand',1],['B1 · Aderltg. im Rohr/Kanal',2],['B2 · Mantelltg. (NYM) im Rohr/Kanal',3],['C · direkt auf/in Wand oder Decke',4],['E · frei in Luft / gelochte Rinne',5]],AD=[['2 belastete Adern',2],['3 belastete Adern',3]],TS=[10,15,20,25,30,35,40,45,50,55,60,65].map(x=>[x+' °C',x]),HAS=[['gebündelt / im Rohr',0],['einlagig, Berührung',1],['einlagig, Abstand d',2],['unter Decke, Berührung',3],['unter Decke, Abstand d',4]],HNS=HN.map(x=>['Anzahl '+x,x]),SA=S2l.map(x=>[x+' mm²',x]),SB=SA.slice(0,9);
+const S=[1.5,2.5,4,6,10,16,25,35,50,70,95,120,150,185,240,300];
+const F=[
+{c:"Grundlagen",n:"Ohmsches Gesetz",f:"U = R·I   P = U·I   (zwei Werte eintragen)",i:[["U","Spannung","V"],["I","Strom","A"],["R","Widerstand","Ω"]],k:v=>{let{U,I,R}=v;if([U,I,R].filter(x=>!isNaN(x)).length<2)return;if(isNaN(U))U=R*I;else if(isNaN(I))I=U/R;else if(isNaN(R))R=U/I;return[["U",U,"V"],["I",I,"A"],["R",R,"Ω"],["P",U*I,"W"]]}},
+{c:"Grundlagen",n:"Reihenschaltung Widerstände",f:"Rges = R1 + R2 + …",i:[["R1","R1","Ω"],["R2","R2","Ω"],["R3","R3","Ω"],["R4","R4","Ω"]],k:v=>{const a=[v.R1,v.R2,v.R3,v.R4].filter(x=>!isNaN(x));if(a.length<2)return;return[["Rges",a.reduce((s,x)=>s+x),"Ω"]]}},
+{c:"Grundlagen",n:"Parallelschaltung Widerstände",f:"1/Rges = 1/R1 + 1/R2 + …",i:[["R1","R1","Ω"],["R2","R2","Ω"],["R3","R3","Ω"],["R4","R4","Ω"]],k:v=>{const a=[v.R1,v.R2,v.R3,v.R4].filter(x=>!isNaN(x));if(a.length<2)return;return[["Rges",1/a.reduce((s,x)=>s+1/x,0),"Ω"]]}},
+{c:"Grundlagen",n:"Spannungsteiler",f:"U2 = Ue·R2/(R1+R2)",i:[["Ue","Eingang Ue","V"],["R1","R1","Ω"],["R2","R2","Ω"]],k:v=>{if(n(v,"Ue R1 R2"))return;return[["U2",v.Ue*v.R2/(v.R1+v.R2),"V"],["Strom",v.Ue/(v.R1+v.R2),"A"]]}},
+{c:"Grundlagen",n:"RC-Zeitkonstante",f:"τ = R·C   (5τ ≈ voll geladen)",i:[["R","Widerstand","Ω"],["C","Kapazität","µF"]],k:v=>{if(n(v,"R C"))return;const t=v.R*v.C/1000;return[["τ",t,"ms"],["5τ",5*t,"ms"]]}},
+{c:"Wechselstrom",n:"Leistung 1-phasig",f:"P = U·I·cosφ   S = U·I   Q = S·sinφ",i:[["U","Spannung","V",230],["I","Strom","A"],["c","cos φ","",1]],k:v=>{if(n(v,"U I c"))return;const S=v.U*v.I;return[["P Wirk",v.U*v.I*v.c,"W"],["S Schein",S,"VA"],["Q Blind",S*Math.sqrt(1-v.c*v.c),"var"]]}},
+{c:"Wechselstrom",n:"Strom aus Leistung 1-phasig",f:"I = P / (U·cosφ·η)",i:[["P","Leistung","W"],["U","Spannung","V",230],["c","cos φ","",1],["e","Wirkungsgrad η","",1]],k:v=>{if(n(v,"P U c e"))return;return[["I",v.P/(v.U*v.c*v.e),"A"]]}},
+{c:"Wechselstrom",n:"Blindwiderstand, Resonanz",f:"XL = 2π·f·L   XC = 1/(2π·f·C)   f0 = 1/(2π√(LC))",i:[["f","Frequenz","Hz",50],["L","Induktivität","mH"],["C","Kapazität","µF"]],k:v=>{if(isNaN(v.f)||(isNaN(v.L)&&isNaN(v.C)))return;const o=[];if(!isNaN(v.L))o.push(["XL",PI2*v.f*v.L/1000,"Ω"]);if(!isNaN(v.C))o.push(["XC",1e6/(PI2*v.f*v.C),"Ω"]);if(!isNaN(v.L)&&!isNaN(v.C))o.push(["f0",1/(PI2*Math.sqrt(v.L/1000*v.C/1e6)),"Hz"]);return o}},
+{c:"Wechselstrom",n:"Impedanz RLC-Reihe",f:"Z = √(R² + (XL−XC)²)   tanφ = (XL−XC)/R",i:[["R","R","Ω"],["XL","XL","Ω"],["XC","XC","Ω"]],k:v=>{if(isNaN(v.R))return;const x=z(v.XL)-z(v.XC),Z=Math.hypot(v.R,x);return[["Z",Z,"Ω"],["φ",Math.atan2(x,v.R)*180/Math.PI,"°"],["cos φ",v.R/Z,""]]}},
+{c:"Wechselstrom",n:"Blindleistungskompensation",f:"Qc = P·(tanφ1 − tanφ2)   C = Qc/(3·U²·ω) im Dreieck",i:[["P","Wirkleistung","kW"],["c1","cos φ vorher","",0.7],["c2","cos φ Ziel","",0.95],["U","Spannung","V",400],["f","Frequenz","Hz",50]],k:v=>{if(n(v,"P c1 c2 U f"))return;const q=v.P*(Math.tan(Math.acos(v.c1))-Math.tan(Math.acos(v.c2))),C=q*1000/(3*v.U*v.U*PI2*v.f)*1e6;return[["Qc",q,"kvar"],["C je Zweig (Dreieck)",C,"µF"],["C je Zweig (Stern)",3*C,"µF"]]}},
+{c:"Drehstrom & Motor",n:"Leistung 3-phasig",f:"P = √3·U·I·cosφ   S = √3·U·I",i:[["U","Außenleiterspannung","V",400],["I","Strom","A"],["c","cos φ","",0.85]],k:v=>{if(n(v,"U I c"))return;const S=r3*v.U*v.I;return[["P Wirk",S*v.c,"W"],["S Schein",S,"VA"],["Q Blind",S*Math.sqrt(1-v.c*v.c),"var"]]}},
+{c:"Drehstrom & Motor",n:"Motorstrom aus Wellenleistung",f:"I = P / (√3·U·cosφ·η)",i:[["P","Wellenleistung","kW"],["U","Spannung","V",400],["c","cos φ","",0.85],["e","Wirkungsgrad η","",0.9]],k:v=>{if(n(v,"P U c e"))return;return[["I",v.P*1000/(r3*v.U*v.c*v.e),"A"],["P aufgenommen",v.P/v.e,"kW"]]}},
+{c:"Drehstrom & Motor",n:"Stern / Dreieck",f:"Stern: Ustr = UL/√3   Dreieck: Istr = IL/√3",i:[["U","Außenleiterspannung","V",400],["I","Außenleiterstrom","A"]],k:v=>{if(n(v,"U I"))return;return[["Stern Strangspg.",v.U/r3,"V"],["Stern Strangstrom",v.I,"A"],["Dreieck Strangspg.",v.U,"V"],["Dreieck Strangstrom",v.I/r3,"A"]]}},
+{c:"Drehstrom & Motor",n:"Drehzahl und Schlupf",f:"ns = 60·f/p   s = (ns−n)/ns",i:[["f","Frequenz","Hz",50],["p","Polpaarzahl","",2],["nn","Nenndrehzahl","1/min"]],k:v=>{if(n(v,"f p"))return;const ns=60*v.f/v.p,o=[["ns synchron",ns,"1/min"]];if(!isNaN(v.nn))o.push(["Schlupf",(ns-v.nn)/ns*100,"%"]);return o}},
+{c:"Drehstrom & Motor",n:"Drehmoment",f:"M = 9550·P / n   (P in kW)",i:[["P","Leistung","kW"],["nn","Drehzahl","1/min"]],k:v=>{if(n(v,"P nn"))return;return[["M",9550*v.P/v.nn,"Nm"]]}},
+{c:"Leitungen",n:"Spannungsfall",f:"ΔU = 2·I·L·cosφ/(κ·A)  bzw.  √3·I·L·cosφ/(κ·A)",i:[["ph","Netz","",3,PH],["U","Nennspannung","V",400],["I","Strom","A"],["L","Länge (einfach)","m"],["A","Querschnitt","mm²"],["k","κ (Cu 56, Al 35)","",56],["c","cos φ","",1]],k:v=>{if(n(v,"U I L A k c"))return;const d=(v.ph==1?2:r3)*v.I*v.L*v.c/(v.k*v.A);return[["ΔU",d,"V"],["ΔU",d/v.U*100,"%"]]}},
+{c:"Leitungen",n:"Mindestquerschnitt nach Spannungsfall",f:"A = f·I·L·cosφ / (κ·ΔU)   dann nächster Normquerschnitt",i:[["ph","Netz","",3,PH],["U","Nennspannung","V",400],["I","Strom","A"],["L","Länge (einfach)","m"],["u","zul. Spannungsfall","%",3],["k","κ (Cu 56, Al 35)","",56],["c","cos φ","",1]],k:v=>{if(n(v,"U I L u k c"))return;const A=(v.ph==1?2:r3)*v.I*v.L*v.c/(v.k*v.u/100*v.U);return[["A rechnerisch",A,"mm²"],["Normquerschnitt",S.find(s=>s>=A)||"> 300","mm²"]]}},
+{c:"Leitungen",n:"Leitungswiderstand und Verlust",f:"R = L/(κ·A)   Pv = I²·R",i:[["L","Länge (einfach)","m"],["A","Querschnitt","mm²"],["k","κ","",56],["I","Strom (optional)","A"]],k:v=>{if(n(v,"L A k"))return;const R=v.L/(v.k*v.A),o=[["R einfach",R*1000,"mΩ"],["R Hin+Rück",2*R*1000,"mΩ"]];if(!isNaN(v.I))o.push(["Pv Hin+Rück",v.I*v.I*2*R,"W"]);return o}},
+{c:"Leitungen",n:"Widerstand bei Temperatur",f:"Rθ = R20·(1 + α·(θ−20 °C))   α Cu = 0,00393",i:[["R","R bei 20 °C","Ω"],["t","Temperatur θ","°C",70],["a","α","",0.00393]],k:v=>{if(n(v,"R t a"))return;return[["Rθ",v.R*(1+v.a*(v.t-20)),"Ω"]]}},
+{c:'Strombelastbarkeit',n:'Strombelastbarkeit Iz (Cu, PVC, 70 °C)',f:'Iz = Iz,Tab · f(Temperatur) · f(Häufung) · DIN VDE 0298-4:2023-06, Tab. 2',i:[['va','Verlegeart','',3,VA],['ad','Belastete Adern','',3,AD],['A','Querschnitt','',2.5,SA],['t','Umgebungstemperatur','',30,TS],['ha','Anordnung bei Häufung','',0,HAS],['hn','Kabel / Stromkreise','',1,HNS]],k:v=>{if(n(v,'va ad A t ha hn'))return;const b=T2[v.A][v.va*2+v.ad-2],f1=TF[v.t],f2=HF[v.ha][HN.indexOf(v.hn)],r=b*f1*f2,I=IN.filter(x=>x<=r).pop();return[['Iz Tabelle (30 °C)',b,'A'],['f Temperatur',f1,''],['f Häufung',f2,''],['Iz reduziert',r,'A'],['größter Nennstrom In',I||'–','A']]}},
+{c:'Strombelastbarkeit',n:'Querschnitt aus Betriebsstrom Ib',f:'Ib,neu = Ib / (f1·f2)   kleinster Querschnitt mit Iz ≥ Ib,neu',i:[['Ib','Betriebsstrom Ib','A'],['va','Verlegeart','',3,VA],['ad','Belastete Adern','',3,AD],['t','Umgebungstemperatur','',30,TS],['ha','Anordnung bei Häufung','',0,HAS],['hn','Kabel / Stromkreise','',1,HNS]],k:v=>{if(n(v,'Ib va ad t ha hn'))return;const i=v.va*2+v.ad-2,f=TF[v.t]*HF[v.ha][HN.indexOf(v.hn)],nb=v.Ib/f,A=S2l.find(s=>T2[s][i]>=nb);if(!A)return[['Ib,neu',nb,'A'],['Querschnitt','über 120','mm²']];const iz=T2[A][i]*f,In=IN.find(x=>x>=v.Ib&&x<=iz);return[['Ib,neu',nb,'A'],['Querschnitt',A,'mm²'],['Iz reduziert',iz,'A'],['Nennstrom In (Ib ≤ In ≤ Iz)',In||'–','A']]}},
+{c:'Strombelastbarkeit',n:'Iz und max. In bei 25 °C (Tabelle 3)',f:'Direktwerte für 25 °C, ohne Häufung, Cu/PVC 70 °C, Dauerbetrieb',i:[['va','Verlegeart','',3,VA],['ad','Belastete Adern','',3,AD],['A','Querschnitt','',2.5,SB]],k:v=>{if(n(v,'va ad A'))return;const i=v.va*2+v.ad-2,r=T3[v.A];return[['Iz (25 °C)',r[0][i],'A'],['max. In',r[1][i],'A']]}},
+{c:'Strombelastbarkeit',n:'Hinweise zur Strombelastbarkeit',f:'Stand DIN VDE 0298-4:2023-06, Auszug',t:'Bedingungen: Ib ≤ In ≤ Iz und I2 ≤ 1,45·Iz (Überlastschutz nach VDE 0100-430). Verschiedene Verlegearten auf einer Strecke: ungünstigste Verlegeart gilt.<br>Faktoren für Temperatur und Häufung gelten für gleichartig, voll belastete Leitungen; der Querschnitt darf sich nur um eine Stufe unterscheiden. Bei mehr als 3 belasteten Adern (>5 Adern, bis 10 mm²): 5 Adern 0,75 · 7 Adern 0,65 · 10 Adern 0,55 · 14 Adern 0,50.<br>Tabelle 3 (25 °C): Fußnoten der Norm beachten, z. B. 1,5 mm² bei thermisch ungünstiger Konstruktion nur mit 13 A, Verlegung auf Holzwand eine Stufe niedriger.<br>Nicht enthalten: Aluminium, Erdverlegung, Verlegearten F/G, 90-°C-Leitungen, Querschnitte über 120 mm². Dafür die Tabellen der Norm nutzen. Spannungsfall und Abschaltbedingung zusätzlich prüfen.'},
+{c:"Schutz & Prüfung",n:"Max. Schleifenimpedanz (TN, LS-Schalter)",f:"Zs ≤ U0/Ia   Ia = Faktor·In (B 5, C 10, D 20)",i:[["U","U0 (Außenleiter–PE)","V",230],["In","Nennstrom","A",16],["f","Charakteristik","",5,[["B",5],["C",10],["D",20]]]],k:v=>{if(n(v,"U In f"))return;const Ia=v.f*v.In,Z=v.U/Ia;return[["Ia",Ia,"A"],["Zs max",Z,"Ω"],["Faustregel Messwert (2/3)",Z*2/3,"Ω"]]}},
+{c:"Schutz & Prüfung",n:"Fehlerstrom Außenleiter–PE",f:"Ik = U0 / Zs",i:[["U","U0","V",230],["Z","Zs gemessen","Ω"]],k:v=>{if(n(v,"U Z"))return;return[["Ik",v.U/v.Z,"A"]]}},
+{c:"Schutz & Prüfung",n:"Dreipoliger Kurzschlussstrom",f:"Ik3 = c·Un / (√3·Zk)",i:[["U","Netzspannung Un","V",400],["Z","Zk","mΩ"],["c","Faktor c","",1]],k:v=>{if(n(v,"U Z c"))return;return[["Ik3",v.c*v.U/(r3*v.Z/1000)/1000,"kA"]]}},
+{c:"Schutz & Prüfung",n:"Erdungswiderstand mit RCD",f:"RA ≤ UL / IΔn   (UL = 50 V)",i:[["U","UL","V",50],["I","IΔn","mA",30]],k:v=>{if(n(v,"U I"))return;return[["RA max",v.U/(v.I/1000),"Ω"]]}},
+{c:"Schutz & Prüfung",n:"Richtwerte VDE 0100-600 (Notiz)",f:"Normauszug, ohne Gewähr",t:"Abschaltzeit TN, Endstromkreise ≤ 32 A (230 V): 0,4 s. Verteilerstromkreise: 5 s.<br>Isolationswiderstand: SELV/PELV (250 V DC) ≥ 0,5 MΩ · bis 500 V (500 V DC) ≥ 1 MΩ · über 500 V (1000 V DC) ≥ 1 MΩ.<br>RCD muss zwischen 0,5·IΔn und 1·IΔn auslösen.<br>Aktuelle Normfassung im Zweifel prüfen."},
+{c:"Energie & Sonstiges",n:"Energie und Kosten",f:"W = P·t   Kosten = W·Preis",i:[["P","Leistung","W"],["t","Zeit","h"],["p","Preis","ct/kWh",35]],k:v=>{if(n(v,"P t p"))return;const w=v.P*v.t/1000;return[["Energie",w,"kWh"],["Kosten",w*v.p/100,"€"]]}},
+{c:"Energie & Sonstiges",n:"Wirkungsgrad",f:"η = Pab / Pzu   Pv = Pzu − Pab",i:[["a","Pab","W"],["z","Pzu","W"]],k:v=>{if(n(v,"a z"))return;return[["η",v.a/v.z*100,"%"],["Verlust Pv",v.z-v.a,"W"]]}},
+{c:"Energie & Sonstiges",n:"Batterie / Akku",f:"W = U·C   Laufzeit = W / P",i:[["C","Kapazität","Ah"],["U","Spannung","V",12],["P","Verbraucher","W"]],k:v=>{if(n(v,"C U"))return;const w=v.C*v.U,o=[["Energie",w,"Wh"]];if(!isNaN(v.P))o.push(["Laufzeit",w/v.P,"h"]);return o}},
+{c:"Energie & Sonstiges",n:"Beleuchtung (Wirkungsgradverfahren)",f:"N = E·A / (Φ·ηB)",i:[["E","Soll-Beleuchtungsstärke","lx",500],["A","Raumfläche","m²"],["F","Lichtstrom je Leuchte","lm"],["e","Anlagenwirkungsgrad ηB","",0.6]],k:v=>{if(n(v,"E A F e"))return;const N=v.E*v.A/(v.F*v.e);return[["Leuchten",N,"Stk"],["aufgerundet",Math.ceil(N),"Stk"]]}},
+{c:"Energie & Sonstiges",n:"Wasser erwärmen",f:"Q = m·1,163 Wh/(kg·K)·ΔT",i:[["m","Menge","l"],["d","Temperaturdifferenz","K"],["P","Heizleistung (optional)","kW"]],k:v=>{if(n(v,"m d"))return;const q=v.m*1.163*v.d/1000,o=[["Energie",q,"kWh"]];if(!isNaN(v.P))o.push(["Zeit",q/v.P,"h"]);return o}}
+];
+const list=document.getElementById("list"),tabs=document.getElementById("tabs"),q=document.getElementById("q");
+let cat="Alle";
+function card(f){const d=document.createElement("section");d.className="card";d.dataset.c=f.c;d.dataset.n=(f.n+" "+f.f).toLowerCase();
+let h=`<h2>${f.n}</h2><p class="f">${f.f}</p>`;
+if(f.t)h+=`<p class="note">${f.t}</p>`;
+else h+='<div class="g">'+f.i.map(([id,l,u,df,o])=>`<label>${l}${u?` <i>[${u}]</i>`:""}`+(o?`<select data-id="${id}">${o.map(([a,b])=>`<option value="${b}"${b==df?" selected":""}>${a}</option>`).join("")}</select>`:`<input data-id="${id}" inputmode="decimal" value="${df??""}">`)+"</label>").join("")+'</div><div class="out"></div>';
+d.innerHTML=h;
+if(!f.t){const out=d.querySelector(".out"),run=()=>{const v={};d.querySelectorAll("[data-id]").forEach(e=>{v[e.dataset.id]=e.value.trim()===""?NaN:parseFloat(e.value.replace(",","."))});let r;try{r=f.k(v)}catch(e){}out.innerHTML=r?r.map(([l,x,u])=>`<div><span>${l}</span><b>${typeof x==="string"?x:fmt(x)} ${u}</b></div>`).join(""):"<em>Werte eintragen</em>"};d.addEventListener("input",run);run()}
+return d}
+const cards=F.map(card);cards.forEach(c=>list.appendChild(c));
+function filter(){const s=q.value.toLowerCase().trim();cards.forEach(d=>d.hidden=!((cat==="Alle"||d.dataset.c===cat)&&d.dataset.n.includes(s)))}
+["Alle",...new Set(F.map(f=>f.c))].forEach(c=>{const b=document.createElement("button");b.textContent=c;if(c===cat)b.className="on";b.onclick=()=>{cat=c;tabs.querySelectorAll("button").forEach(x=>x.className=x===b?"on":"");filter()};tabs.appendChild(b)});
+q.addEventListener("input",filter);
+</script>
+</body>
+</html>
